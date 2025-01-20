@@ -189,8 +189,13 @@ type MLParameters struct {
 	Alpha          float64 `bson:"alpha" json:"alpha"`                   // 正则化强度
 
 	// 决策树参数
-	MaxDepth   int `bson:"max_depth" json:"max_depth"`
-	MinSamples int `bson:"min_samples" json:"min_samples"`
+	MaxDepth   int  `bson:"max_depth" json:"max_depth"`
+	MinSamples int  `bson:"min_samples" json:"min_samples"`
+	AutoEncode bool `bson:"auto_encode" json:"auto_encode"`
+
+	// kmeans参数
+	NClusters int `bson:"n_clusters" json:"n_clusters"`
+	MaxIter   int `bson:"max_iter" json:"max_iter"`
 }
 
 type MLResult struct {

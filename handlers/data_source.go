@@ -16,6 +16,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
@@ -450,7 +451,7 @@ func UpdateDataSource(c *gin.Context) {
 	utils.Success(c, gin.H{"message": "更新成功"})
 }
 
-// 删除数据源
+// DeleteDataSource 删除数据源及其关联的图表、机器学习模型和 OSS 文件
 func DeleteDataSource(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -475,14 +476,35 @@ func DeleteDataSource(c *gin.Context) {
 		return
 	}
 
-	// 删除关联的图表
+	// 1. 删除 OSS 中的文件
+	if dataSource.FileURL != "" {
+		// 从 FileURL 中提取文件名
+		// 假设 FileURL 格式为 "https://bucket-name.endpoint/object-key"
+		urlParts := strings.Split(dataSource.FileURL, "/")
+		objectKey := urlParts[len(urlParts)-1]
+
+		if cloudStorage != nil && cloudStorage.bucket != nil {
+			err := cloudStorage.bucket.DeleteObject(objectKey)
+			if err != nil {
+				// 记录错误但继续执行
+				log.Printf("Failed to delete file from OSS: %v", err)
+			} else {
+				log.Printf("Successfully deleted file from OSS: %s", objectKey)
+			}
+		}
+	}
+
+	// 2. 删除关联的图表
+	var chartsDeleted int64 = 0
 	if len(dataSource.LinkedCharts) > 0 {
 		chartCollection := db.GetClient().Database("bi_platform").Collection("charts")
-		_, err = chartCollection.DeleteMany(context.TODO(), bson.M{
+		result, err := chartCollection.DeleteMany(context.TODO(), bson.M{
 			"_id": bson.M{"$in": dataSource.LinkedCharts},
 		})
 		if err != nil {
 			log.Printf("Failed to delete linked charts: %v", err)
+		} else {
+			chartsDeleted = result.DeletedCount
 		}
 
 		// 更新包含这些图表的仪表盘
@@ -503,7 +525,19 @@ func DeleteDataSource(c *gin.Context) {
 		}
 	}
 
-	// 删除数据源
+	// 3. 删除关联的机器学习模型
+	mlModelCollection := db.GetClient().Database("bi_platform").Collection("ml_models")
+	mlResult, err := mlModelCollection.DeleteMany(context.TODO(), bson.M{
+		"data_source_id": id,
+	})
+	var modelsDeleted int64 = 0
+	if err != nil {
+		log.Printf("Failed to delete linked ML models: %v", err)
+	} else {
+		modelsDeleted = mlResult.DeletedCount
+	}
+
+	// 4. 删除数据源本身
 	result, err := collection.DeleteOne(context.TODO(), bson.M{
 		"_id":        id,
 		"created_by": c.MustGet("user_id").(primitive.ObjectID),
@@ -519,9 +553,12 @@ func DeleteDataSource(c *gin.Context) {
 		return
 	}
 
+	// 返回详细的删除结果
 	utils.Success(c, gin.H{
 		"message": "删除成功",
-		"details": fmt.Sprintf("已删除数据源及其关联的 %d 个图表", len(dataSource.LinkedCharts)),
+		"details": fmt.Sprintf(
+			"已删除数据源及其关联的 %d 个图表和 %d 个机器学习模型，OSS 文件已清理",
+			chartsDeleted, modelsDeleted),
 	})
 }
 
