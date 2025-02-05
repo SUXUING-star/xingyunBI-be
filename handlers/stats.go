@@ -78,9 +78,29 @@ func GetUserStats(c *gin.Context) {
 		}
 		dashboardCursor.Close(ctx)
 	}
+	// 先获取数据库
+	mlModelColl := client.Database("bi_platform").Collection("ml_models")
+
+	// 4. 获取最近的机器学习模型
+	mlModelOpts := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}}).
+		SetLimit(5)
+
+	mlModelCursor, err := mlModelColl.Find(ctx,
+		bson.M{"created_by": userID},
+		mlModelOpts,
+	)
+
+	if err == nil {
+		var recentMLModels []models.MLModel
+		if err = mlModelCursor.All(ctx, &recentMLModels); err == nil {
+			// 将结果添加到 stats 中
+			stats.RecentMLModels = recentMLModels
+		}
+		mlModelCursor.Close(ctx)
+	}
 
 	// 5. 获取机器学习模型总数
-	mlModelColl := client.Database("bi_platform").Collection("ml_models")
 	mlModels, err := mlModelColl.CountDocuments(ctx, bson.M{"created_by": userID})
 	if err != nil {
 		log.Printf("Error counting ML models: %v", err)

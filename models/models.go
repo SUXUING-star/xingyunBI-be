@@ -95,6 +95,7 @@ type UserStats struct {
 	TotalMLModels    int64                    `json:"total_ml_models"` // 添加机器学习模型总数
 	RecentActivity   []map[string]interface{} `json:"recent_activity"`
 	RecentDashboards []Dashboard              `json:"recent_dashboards"`
+	RecentMLModels   []MLModel                `json:"recent_ml_models"` // 添加这一行
 	UsageStats       []UsageStat              `json:"usage_stats"`
 	MLModelStats     MLModelStats             `json:"ml_model_stats"` // 添加机器学习模型统计
 }
