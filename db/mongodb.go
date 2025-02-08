@@ -3,6 +3,7 @@ package db
 
 import (
 	"context"
+	"crypto/tls"
 	"sync"
 	"time"
 
@@ -27,7 +28,10 @@ func Init(ctx context.Context) error {
 			ApplyURI(config.GlobalConfig.Database.URI).
 			SetMaxPoolSize(config.GlobalConfig.Database.PoolSize).
 			SetMinPoolSize(5).
-			SetMaxConnIdleTime(5 * time.Minute)
+			SetMaxConnIdleTime(5 * time.Minute).
+			SetTLSConfig(&tls.Config{
+				InsecureSkipVerify: true, // 相当于 tlsAllowInvalidCertificates=true
+			})
 
 		// 连接MongoDB
 		client, err = mongo.Connect(ctx, clientOptions)
