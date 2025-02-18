@@ -27,49 +27,19 @@ func init() {
 		log.Fatal("Failed to load config:", err)
 	}
 }
-
-func main() {
-	// 根据环境变量设置 gin 模式
-	if os.Getenv("GIN_MODE") == "release" {
-		gin.SetMode(gin.ReleaseMode)
-	} else {
-		gin.SetMode(gin.DebugMode)
-	}
-	// 创建上下文
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// 初始化数据库连接
-	if err := db.Init(ctx); err != nil {
-		log.Fatal("Failed to connect to MongoDB:", err)
-	}
-	defer db.Close(ctx)
-
-	// 加载环境变量
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Error loading .env file: %v", err)
-	}
-	// 初始化 OSS
-	if err := storage.InitCloudStorage(); err != nil {
-		log.Fatalf("Failed to initialize cloud storage: %v", err)
-	}
-	// 初始化路由
-	router := setupRouter()
-
-	// 启动服务器
-	port := config.GlobalConfig.Server.Port
-	log.Printf("Server starting on port %s", port)
-	if err := router.Run(":" + port); err != nil {
-		log.Fatal(err)
-	}
-}
-
 func setupRouter() *gin.Engine {
 	r := gin.Default()
 
 	// 中间件
 	r.Use(middleware.Cors())
 	r.Use(middleware.Logger())
+
+	// 添加一个测试路由
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
 
 	// API路由
 	api := r.Group("/api")
@@ -149,4 +119,48 @@ func setupRouter() *gin.Engine {
 		}
 	}
 	return r
+}
+
+func main() {
+	// 根据环境变量设置 gin 模式
+	if os.Getenv("GIN_MODE") == "release" {
+		gin.SetMode(gin.ReleaseMode)
+	} else {
+		gin.SetMode(gin.DebugMode)
+	}
+	// 创建上下文
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// 初始化数据库连接
+	if err := db.Init(ctx); err != nil {
+		log.Fatal("Failed to connect to MongoDB:", err)
+	}
+	defer db.Close(ctx)
+
+	// 加载环境变量
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Error loading .env file: %v", err)
+	}
+	// 初始化 OSS
+	if err := storage.InitCloudStorage(); err != nil {
+		log.Fatalf("Failed to initialize cloud storage: %v", err)
+	}
+	// 初始化路由
+	router := setupRouter()
+	// 打印所有注册的路由
+	log.Println("=== Registered Routes ===")
+	routes := router.Routes()
+	for _, route := range routes {
+		log.Printf("%s %s", route.Method, route.Path)
+	}
+	log.Println("=======================")
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Server starting on port %s", port)
+	router.Run(":" + port)
 }
