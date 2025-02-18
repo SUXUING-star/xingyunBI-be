@@ -9,14 +9,15 @@ import (
 
 func Cors() gin.HandlerFunc {
 	config := cors.Config{
-		AllowOrigins: []string{
-			"http://localhost:5173",
-			"https://www.xingyunbi.site",
-			"https://xingyunbi.vercel.app",
-			"https://xingyunbi.site",
-			"https://xingyunbi-be.onrender.com",
-			"https://reactgo-backend-production.up.railway.app",
-		},
+		// AllowOrigins: []string{
+		// 	"http://localhost:5173",
+		// 	"https://www.xingyunbi.site",
+		// 	"https://xingyunbi.vercel.app",
+		// 	"https://xingyunbi.site",
+		// 	"https://xingyunbi-be.onrender.com",
+		// 	"https://reactgo-backend-production.up.railway.app",
+		// },
+		AllowAllOrigins: true, // 临时允许所有源，仅用于测试
 		AllowMethods: []string{
 			"GET",
 			"POST",
